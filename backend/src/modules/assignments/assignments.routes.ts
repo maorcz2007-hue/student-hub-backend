@@ -1,0 +1,14 @@
+import { Router } from 'express';
+import { getAssignments, createAssignment, getAssignmentById, submitAssignment } from './assignments.controller.js';
+import { authenticate } from '../../middleware/auth.middleware.js';
+
+const router = Router();
+
+router.use(authenticate);
+
+router.get('/', getAssignments);
+router.post('/', createAssignment);
+router.get('/:id', getAssignmentById);
+router.post('/:id/submit', submitAssignment);
+
+export default router;

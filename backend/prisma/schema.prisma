@@ -1,0 +1,399 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+}
+
+enum AssignmentType {
+  HOMEWORK
+  PROJECT
+  LAB
+  EXAM
+  PERSONAL
+}
+
+enum Priority {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum SubmissionStatus {
+  PENDING
+  SUBMITTED
+  GRADED
+  LATE
+  MISSED
+}
+
+enum ChatType {
+  PRIVATE
+  GROUP
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  FILE
+}
+
+enum FeedbackType {
+  BUG_REPORT
+  FEATURE_REQUEST
+  SUGGESTION
+  OTHER
+}
+
+enum FeedbackStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+  CLOSED
+}
+
+model User {
+  id              String        @id @default(uuid())
+  email           String        @unique
+  passwordHash    String        @map("password_hash")
+  fullName        String        @map("full_name")
+  role            Role          @default(STUDENT)
+  avatarUrl       String?       @map("avatar_url")
+  isVerified      Boolean       @default(false) @map("is_verified")
+  is2faEnabled    Boolean       @default(false) @map("is_2fa_enabled")
+  twofaSecret     String?       @map("twofa_secret")
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  // Relations
+  studentProfile  Student?
+  sessions        Session[]
+  notifications   Notification[]
+  feedback        Feedback[]
+  auditLogs       AuditLog[]
+  files           File[]
+  calendarEvents  CalendarEvent[]
+  userSettings    UserSettings?
+  participants    MessageParticipant[]
+  messagesSent    Message[]
+
+  @@map("users")
+}
+
+model Student {
+  userId          String        @id @map("user_id")
+  studentId       String        @unique @map("student_id")
+  university      String?
+  faculty         String?
+  department      String?
+  year            Int?
+  semester        Int?
+  bio             String?       @db.VarChar(500)
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  enrollments     Enrollment[]
+  grades          Grade[]
+  submissions     AssignmentSubmission[]
+  achievements    Achievement[]
+  aiHistory       AIHistory[]
+
+  @@map("students")
+}
+
+model Course {
+  id              String        @id @default(uuid())
+  name            String
+  code            String        @unique
+  credits         Int
+  teacherId       String        @map("teacher_id")
+  description     String?       @db.VarChar(1000)
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  enrollments     Enrollment[]
+  assignments     Assignment[]
+  grades          Grade[]
+  schedules       CourseSchedule[]
+
+  @@map("courses")
+}
+
+model CourseSchedule {
+  id              String        @id @default(uuid())
+  courseId        String        @map("course_id")
+  dayOfWeek       Int           @map("day_of_week") // 1 (Mon) - 7 (Sun)
+  startTime       String        @map("start_time") // "HH:MM"
+  endTime         String        @map("end_time") // "HH:MM"
+  room            String
+
+  // Relations
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@map("course_schedules")
+}
+
+model Enrollment {
+  id              String        @id @default(uuid())
+  studentId       String        @map("student_id")
+  courseId        String        @map("course_id")
+  semester        String // "Fall 2026", etc.
+  status          String        @default("ACTIVE") // "ACTIVE", "COMPLETED", "DROPPED"
+  enrolledAt      DateTime      @default(now()) @map("enrolled_at")
+
+  // Relations
+  student         Student       @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+
+  @@unique([studentId, courseId])
+  @@map("enrollments")
+}
+
+model Assignment {
+  id              String        @id @default(uuid())
+  courseId        String        @map("course_id")
+  title           String
+  description     String?       @db.VarChar(5000)
+  dueDate         DateTime      @map("due_date")
+  priority        Priority      @default(MEDIUM)
+  type            AssignmentType @default(HOMEWORK)
+  maxScore        Int           @default(100) @map("max_score")
+  estimatedTime   Int?          @map("estimated_time") // in minutes
+  teacherNotes    String?       @map("teacher_notes")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  submissions     AssignmentSubmission[]
+  grades          Grade[]
+
+  @@map("assignments")
+}
+
+model AssignmentSubmission {
+  id              String        @id @default(uuid())
+  assignmentId    String        @map("assignment_id")
+  studentId       String        @map("student_id")
+  status          SubmissionStatus @default(PENDING)
+  score           Float?
+  submittedAt     DateTime?     @map("submitted_at")
+  attachments     Json? // List of file metadata
+  feedback        String?
+
+  // Relations
+  assignment      Assignment    @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student         Student       @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_submissions")
+}
+
+model Grade {
+  id              String        @id @default(uuid())
+  studentId       String        @map("student_id")
+  courseId        String        @map("course_id")
+  assignmentId    String?       @map("assignment_id")
+  score           Float
+  maxScore        Float         @map("max_score")
+  semester        String
+  gradedAt        DateTime      @default(now()) @map("graded_at")
+
+  // Relations
+  student         Student       @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+  course          Course        @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  assignment      Assignment?   @relation(fields: [assignmentId], references: [id], onDelete: SetNull)
+
+  @@map("grades")
+}
+
+model Conversation {
+  id              String        @id @default(uuid())
+  type            ChatType      @default(PRIVATE)
+  name            String?
+  createdBy       String?       @map("created_by")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  participants    MessageParticipant[]
+  messages        Message[]
+
+  @@map("conversations")
+}
+
+model MessageParticipant {
+  conversationId  String        @map("conversation_id")
+  userId          String        @map("user_id")
+  lastReadAt      DateTime      @default(now()) @map("last_read_at")
+  isPinned        Boolean       @default(false) @map("is_pinned")
+
+  // Relations
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([conversationId, userId])
+  @@map("message_participants")
+}
+
+model Message {
+  id              String        @id @default(uuid())
+  conversationId  String        @map("conversation_id")
+  senderId        String        @map("sender_id")
+  content         String        @db.VarChar(10000)
+  type            MessageType   @default(TEXT)
+  attachments     Json? // list of file meta
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  conversation    Conversation  @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  sender          User          @relation(fields: [senderId], references: [id], onDelete: Cascade)
+
+  @@map("messages")
+}
+
+model Notification {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  type            String
+  title           String
+  body            String
+  data            Json?
+  isRead          Boolean       @default(false) @map("is_read")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("notifications")
+}
+
+model CalendarEvent {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  title           String
+  description     String?       @db.VarChar(1000)
+  startTime       DateTime      @map("start_time")
+  endTime         DateTime      @map("end_time")
+  type            String        @default("PERSONAL") // "PERSONAL", "EXAM", "ASSIGNMENT", "CLASS"
+  courseId        String?       @map("course_id")
+  reminderMinutes Int?          @map("reminder_minutes")
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("calendar_events")
+}
+
+model File {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  name            String
+  path            String
+  mimeType        String        @map("mime_type")
+  size            Int
+  folder          String        @default("root")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("files")
+}
+
+model Session {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  token           String        @unique
+  device          String?
+  ip              String?
+  expiresAt       DateTime      @map("expires_at")
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("sessions")
+}
+
+model UserSettings {
+  userId          String        @id @map("user_id")
+  theme           String        @default("system")
+  themeColor      Int           @default(4278221823) @map("theme_color") // Default primary blue ARGB
+  language        String        @default("en")
+  pushEnabled     Boolean       @default(true) @map("push_enabled")
+  emailEnabled    Boolean       @default(true) @map("email_enabled")
+  appLockEnabled  Boolean       @default(false) @map("app_lock_enabled")
+  biometricEnabled Boolean      @default(false) @map("biometric_enabled")
+  moodleIcalUrl   String?       @map("moodle_ical_url") @db.VarChar(1000)
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
+}
+
+model Feedback {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  type            FeedbackType  @default(BUG_REPORT)
+  title           String
+  description     String        @db.VarChar(2000)
+  status          FeedbackStatus @default(OPEN)
+  rating          Int?
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("feedback")
+}
+
+model Achievement {
+  id              String        @id @default(uuid())
+  studentId       String        @map("student_id")
+  type            String
+  title           String
+  description     String
+  earnedAt        DateTime      @default(now()) @map("earned_at")
+
+  // Relations
+  student         Student       @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@map("achievements")
+}
+
+model AIHistory {
+  id              String        @id @default(uuid())
+  studentId       String        @map("student_id")
+  messages        Json // List of chat messages (role, content, timestamp)
+  provider        String        @default("OPENAI")
+  model           String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  student         Student       @relation(fields: [studentId], references: [userId], onDelete: Cascade)
+
+  @@map("ai_histories")
+}
+
+model AuditLog {
+  id              String        @id @default(uuid())
+  userId          String        @map("user_id")
+  action          String
+  resource        String
+  details         String?       @db.VarChar(1000)
+  ip              String?
+  createdAt       DateTime      @default(now()) @map("created_at")
+
+  // Relations
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("audit_logs")
+}
