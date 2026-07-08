@@ -7,8 +7,8 @@ class AppConstants {
   static const String appVersion = '1.0.0';
 
   // ── API ──
-  static const String baseUrl = 'http://localhost:5000/api';
-  static const String wsUrl = 'wss://students-app-gee6.onrender.com';
+  static const String baseUrl = 'https://student-hub-backend-t2id.onrender.com/api';
+  static const String wsUrl = 'wss://student-hub-backend-t2id.onrender.com';
 
   // ── Storage Keys ──
   static const String accessTokenKey = 'access_token';

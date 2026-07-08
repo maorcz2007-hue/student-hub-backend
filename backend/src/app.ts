@@ -21,6 +21,9 @@ import filesRoutes from './modules/files/files.routes.js';
 import feedbackRoutes from './modules/feedback/feedback.routes.js';
 const app = express();
 
+// Global request logger
+app.use((req, res, next) => { console.log(`[REQUEST] ${req.method} ${req.url}`); next(); });
+
 // Security Middlewares
 app.use(helmet());
 app.use(
