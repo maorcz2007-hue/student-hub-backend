@@ -1,5 +1,5 @@
 import http from 'http';
-import { Server } from 'socket.io';
+import { Server, Socket } from 'socket.io';
 import app from './app.js';
 import { env } from './config/environment.js';
 import { connectDB } from './config/database.js';
@@ -18,15 +18,15 @@ const io = new Server(server, {
 });
 
 // Simple real-time socket handler
-io.on('connection', (socket) => {
+io.on('connection', (socket: Socket) => {
   logger.info(`Socket connected: ${socket.id}`);
 
-  socket.on('join_room', (room) => {
+  socket.on('join_room', (room: string) => {
     socket.join(room);
     logger.debug(`Socket ${socket.id} joined room: ${room}`);
   });
 
-  socket.on('send_message', (data) => {
+  socket.on('send_message', (data: any) => {
     // data: { conversationId, content, senderId }
     io.to(data.conversationId).emit('new_message', data);
     logger.debug(`Broadcasted message in room: ${data.conversationId}`);
