@@ -28,15 +28,22 @@ export async function register(req: Request, res: Response, next: NextFunction) 
   try {
     const { email, password, fullName, studentId, role } = req.body;
 
+    console.log('Attempting to check for existing user...');
     const existingUser = await prisma.user.findUnique({ where: { email } });
+    console.log('Successfully checked for existing user.');
+
     if (existingUser) {
       return res.status(400).json({ success: false, message: 'Email already in use' });
     }
 
+    console.log('Attempting to hash password...');
     const passwordHash = await hashPassword(password);
+    console.log('Successfully hashed password.');
 
     // Create user and profile
     const userRole = role || 'STUDENT';
+    
+    console.log('Attempting to save user to DB...');
     const user = await prisma.$transaction(async (tx: any) => {
       const newUser = await tx.user.create({
         data: {
@@ -72,9 +79,11 @@ export async function register(req: Request, res: Response, next: NextFunction) 
 
       return newUser;
     });
+    console.log('Successfully saved user to DB.');
 
     const tokens = generateTokens(user);
 
+    console.log('Attempting to save session to DB...');
     // Persist session
     await prisma.session.create({
       data: {
@@ -83,12 +92,15 @@ export async function register(req: Request, res: Response, next: NextFunction) 
         expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days
       },
     });
+    console.log('Successfully saved session to DB.');
 
+    console.log('Attempting to fetch full user profile...');
     // Fetch complete user profile if student
     const fullUser = await prisma.user.findUnique({
       where: { id: user.id },
       include: { studentProfile: true },
     });
+    console.log('Successfully fetched full user profile.');
 
     logger.info(`User registered successfully: ${email}`);
 
@@ -111,8 +123,9 @@ export async function register(req: Request, res: Response, next: NextFunction) 
       },
       ...tokens,
     });
-  } catch (error) {
-    next(error);
+  } catch (error: any) {
+    logger.error('Registration error:', error);
+    return res.status(500).json({ error: error.message || 'Internal server error during registration' });
   }
 }
 
