@@ -43,7 +43,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Global Rate Limiter
-app.use('/api/', apiLimiter);
+// app.use('/api/', apiLimiter);
 
 // Static assets (For uploads/avatars)
 app.use('/uploads', express.static(env.UPLOAD_DIR));
