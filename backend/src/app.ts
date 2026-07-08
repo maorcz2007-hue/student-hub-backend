@@ -2,7 +2,6 @@ import express from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import path from 'path';
-import { fileURLToPath } from 'url';
 import { env } from './config/environment.js';
 import { apiLimiter } from './middleware/rate-limit.middleware.js';
 import { errorMiddleware } from './middleware/error.middleware.js';
@@ -20,10 +19,6 @@ import notificationsRoutes from './modules/notifications/notifications.routes.js
 import searchRoutes from './modules/search/search.routes.js';
 import filesRoutes from './modules/files/files.routes.js';
 import feedbackRoutes from './modules/feedback/feedback.routes.js';
-
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-
 const app = express();
 
 // Security Middlewares
