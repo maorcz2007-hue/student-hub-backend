@@ -9,6 +9,7 @@ export interface AuthenticatedRequest extends Request {
     email: string;
     role: string;
   };
+  file?: any;
 }
 
 export const authenticate = async (
