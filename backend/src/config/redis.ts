@@ -8,7 +8,7 @@ export function connectRedis() {
   try {
     redis = new Redis(env.REDIS_URL, {
       maxRetriesPerRequest: 3,
-      retryStrategy(times) {
+      retryStrategy(times: number) {
         const delay = Math.min(times * 50, 2000);
         return delay;
       },
@@ -18,7 +18,7 @@ export function connectRedis() {
       logger.info('Connected to Redis successfully.');
     });
 
-    redis.on('error', (err) => {
+    redis.on('error', (err: any) => {
       logger.error('Redis Client Error:', err);
     });
   } catch (error) {
