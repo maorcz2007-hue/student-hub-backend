@@ -30,16 +30,22 @@ class ApiClient {
     _dio.interceptors.addAll([
       _AuthInterceptor(),
       _ErrorInterceptor(),
-      LogInterceptor(
-        requestBody: true,
-        responseBody: true,
-        logPrint: (object) {
-          // Use debug print in development
-          assert(() {
-            // ignore: avoid_print
-            print('🌐 $object');
-            return true;
-          }());
+      InterceptorsWrapper(
+        onRequest: (options, handler) {
+          print('🌐 [REQUEST] ${options.method} ${options.uri}');
+          print('🌐 [REQUEST DATA] ${options.data}');
+          return handler.next(options);
+        },
+        onResponse: (response, handler) {
+          print('✅ [RESPONSE] ${response.statusCode} ${response.requestOptions.uri}');
+          print('✅ [RESPONSE DATA] ${response.data}');
+          return handler.next(response);
+        },
+        onError: (DioException e, handler) {
+          print('❌ [ERROR] ${e.response?.statusCode} ${e.requestOptions.uri}');
+          print('❌ [ERROR MESSAGE] ${e.message}');
+          print('❌ [ERROR RESPONSE DATA] ${e.response?.data}');
+          return handler.next(e);
         },
       ),
     ]);
