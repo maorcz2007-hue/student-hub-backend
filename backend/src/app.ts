@@ -21,6 +21,9 @@ import filesRoutes from './modules/files/files.routes.js';
 import feedbackRoutes from './modules/feedback/feedback.routes.js';
 const app = express();
 
+// Trust reverse proxy for rate limiter
+app.set('trust proxy', 1);
+
 // Global request logger
 app.use((req, res, next) => { console.log(`[REQUEST] ${req.method} ${req.url}`); next(); });
 
